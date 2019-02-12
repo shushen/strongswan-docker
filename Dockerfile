@@ -3,7 +3,6 @@
 #
 
 FROM alpine
-MAINTAINER kev <noreply@easypi.pro>
 
 RUN set -xe \
     && apk add --no-cache iptables openssl strongswan util-linux \

@@ -1,13 +1,16 @@
-#!/bin/sh -e
+#!/bin/sh -xe
 #
 # gen config files for strongswan
 #
 # - VPN_DNS
+# - VPN_COUNTRY
+# - VPN_ORGANIZATION
 # - VPN_DOMAIN
 # - VPN_NETWORK
 # - LAN_NETWORK
 # - VPN_P12_PASSWORD
 #
+VPN_SERVER_IP=${VPN_SERVER_IP:-$VPN_DOMAIN}
 
 if [ -e /etc/ipsec.d/ipsec.conf ]
 then
@@ -34,7 +37,6 @@ conn %default
     right=%any
     rightdns=${VPN_DNS}
     rightsourceip=${VPN_NETWORK}
-    rightsubnets=${LAN_NETWORK}
 
 conn IPSec-IKEv2
     keyexchange=ikev2
@@ -54,23 +56,26 @@ cat > /etc/ipsec.d/ipsec.secrets <<_EOF_
 : RSA server.pem
 _EOF_
 
+mkdir -p /etc/ipsec.d/private
+mkdir -p /etc/ipsec.d/cacerts
+mkdir -p /etc/ipsec.d/certs
 
 # gen ca key and cert
 ipsec pki --gen --outform pem > /etc/ipsec.d/private/ca.pem
 
 ipsec pki --self \
           --in /etc/ipsec.d/private/ca.pem \
-          --dn "C=CN, O=strongSwan, CN=strongSwan Root CA" \
+          --dn "C=${VPN_COUNTRY}, O=${VPN_ORGANIZATION}, CN=${VPN_ORGANIZATION} Root CA" \
           --ca \
           --lifetime 3650 \
           --outform pem > /etc/ipsec.d/cacerts/ca.cert.pem
 
 # gen server key and cert
-ipsec pki --gen --outform pem > /etc/ipsec.d/private/server.pem  
+ipsec pki --gen --outform pem > /etc/ipsec.d/private/server.pem
 
 ipsec pki --pub --in /etc/ipsec.d/private/server.pem |
     ipsec pki --issue --lifetime 1200 --cacert /etc/ipsec.d/cacerts/ca.cert.pem \
-              --cakey /etc/ipsec.d/private/ca.pem --dn "C=CN, O=strongSwan, CN=${VPN_DOMAIN}" \
+              --cakey /etc/ipsec.d/private/ca.pem --dn "C=${VPN_COUNTRY}, O=${VPN_ORGANIZATION}, CN=${VPN_DOMAIN}" \
               --san="${VPN_DOMAIN}" --flag serverAuth --flag ikeIntermediate \
               --outform pem > /etc/ipsec.d/certs/server.cert.pem
 
@@ -80,7 +85,8 @@ ipsec pki --gen --outform pem > /etc/ipsec.d/private/client.pem
 ipsec pki --pub --in /etc/ipsec.d/private/client.pem |
     ipsec pki --issue \
               --cacert /etc/ipsec.d/cacerts/ca.cert.pem \
-              --cakey /etc/ipsec.d/private/ca.pem --dn "C=CN, O=strongSwan, CN=client@${VPN_DOMAIN}" \
+              --cakey /etc/ipsec.d/private/ca.pem \
+              --dn "C=${VPN_COUNTRY}, O=${VPN_ORGANIZATION}, CN=client@${VPN_DOMAIN}" \
               --san="client@${VPN_DOMAIN}" \
               --outform pem > /etc/ipsec.d/certs/client.cert.pem
 
@@ -89,7 +95,7 @@ openssl pkcs12 -export \
                -in /etc/ipsec.d/certs/client.cert.pem \
                -name "client@${VPN_DOMAIN}" \
                -certfile /etc/ipsec.d/cacerts/ca.cert.pem \
-               -caname "strongSwan Root CA" \
+               -caname "${VPN_ORGANIZATION} Root CA" \
                -out /etc/ipsec.d/client.cert.p12 \
                -passout pass:${VPN_P12_PASSWORD}
 
@@ -119,7 +125,7 @@ cat > /etc/ipsec.d/client.mobileconfig <<_EOF_
 $(base64 /etc/ipsec.d/client.cert.p12)
    </data>
    <key>PayloadDescription</key>
-   <string>添加 PKCS#12 格式的证书</string>
+   <string>Add Client Certificate in PKCS#12 format</string>
    <key>PayloadDisplayName</key>
    <string>client.cert.p12</string>
    <key>PayloadIdentifier</key>
@@ -139,7 +145,7 @@ $(base64 /etc/ipsec.d/client.cert.p12)
 $(base64 /etc/ipsec.d/cacerts/ca.cert.pem)
    </data>
    <key>PayloadDescription</key>
-   <string>添加 CA 根证书</string>
+   <string>Add Root CA Certificate</string>
    <key>PayloadDisplayName</key>
    <string>strongSwan Root CA</string>
    <key>PayloadIdentifier</key>
@@ -193,7 +199,7 @@ $(base64 /etc/ipsec.d/cacerts/ca.cert.pem)
     <key>PayloadCertificateUUID</key>
     <string>${UUID1}</string>
     <key>RemoteAddress</key>
-    <string>${VPN_DOMAIN}</string>
+    <string>${VPN_SERVER_IP}</string>
     <key>RemoteIdentifier</key>
     <string>${VPN_DOMAIN}</string>
     <key>UseConfigurationAttributeInternalIPSubnet</key>
@@ -207,7 +213,7 @@ $(base64 /etc/ipsec.d/cacerts/ca.cert.pem)
    <key>PayloadDescription</key>
    <string>Configures VPN settings</string>
    <key>PayloadDisplayName</key>
-   <string>VPN</string>
+   <string>${VPN_DOMAIN} VPN</string>
    <key>PayloadIdentifier</key>
    <string>com.apple.vpn.managed.${UUID4}</string>
    <key>PayloadType</key>
@@ -224,7 +230,7 @@ $(base64 /etc/ipsec.d/cacerts/ca.cert.pem)
     <integer>0</integer>
    </dict>
    <key>UserDefinedName</key>
-   <string>VPN (IKEv2)</string>
+   <string>${VPN_DOMAIN} VPN (IKEv2)</string>
    <key>VPNType</key>
    <string>IKEv2</string>
   </dict>
@@ -236,7 +242,7 @@ $(base64 /etc/ipsec.d/cacerts/ca.cert.pem)
 $(base64 /etc/ipsec.d/certs/server.cert.pem)
    </data>
    <key>PayloadDescription</key>
-   <string>添加 PKCS#1 格式的证书</string>
+   <string>Add Server Certificate in PKCS#1 format</string>
    <key>PayloadDisplayName</key>
    <string>${VPN_DOMAIN}</string>
    <key>PayloadIdentifier</key>
@@ -252,7 +258,7 @@ $(base64 /etc/ipsec.d/certs/server.cert.pem)
  <key>PayloadDisplayName</key>
  <string>VPN</string>
  <key>PayloadIdentifier</key>
- <string>com.github.vimagick.strongswan</string>
+ <string>com.${VPN_DOMAIN}.strongswan</string>
  <key>PayloadRemovalDisallowed</key>
  <false/>
  <key>PayloadType</key>

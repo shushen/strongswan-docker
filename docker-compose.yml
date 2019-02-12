@@ -1,7 +1,7 @@
 version: '2'
 services:
   strongswan:
-    image: vimagick/strongswan
+    image: shushen/strongswan
     ports:
       - 500:500/udp
       - 4500:4500/udp
@@ -9,7 +9,10 @@ services:
       - /lib/modules:/lib/modules
       - /etc/localtime:/etc/localtime
     environment:
-      - VPN_DOMAIN=vpn.easypi.info
+      - VPN_DOMAIN=vpn.example.com
+      - VPN_COUNTRY=CA
+      - VPN_ORGANIZATION="Example Co."
+      - VPN_SERVER_IP=192.168.1.100
       - VPN_NETWORK=10.20.30.0/24
       - LAN_NETWORK=192.168.0.0/16
       - VPN_P12_PASSWORD=secret
