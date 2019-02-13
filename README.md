@@ -38,13 +38,22 @@ services:
 
 ```bash
 docker-compose up -d
+docker cp strongswan_strongswan_1:/etc/ipsec.d/ca.cert.pem .
 docker cp strongswan_strongswan_1:/etc/ipsec.d/client.mobileconfig .
 docker cp strongswan_strongswan_1:/etc/ipsec.d/client.cert.p12 .
 docker-compose logs -f
 ```
 
-- Mac/IOS: `client.mobileconfig`
+### add user to EAP-IKEv2
+
+```bash
+docker exec -it strongswan_strongswan_1 /add-vpn-user.sh <username> <password>
+```
+
+### Configuration files or certificates for clients:
+- macOS/iOS: `client.mobileconfig`
 - Android: `client.cert.p12`
+- Root CA certificate for manual configuration: `ca.cert.pem`
 
 [1]: https://strongswan.org/
 [2]: https://github.com/vimagick/dockerfiles

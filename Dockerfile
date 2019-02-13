@@ -10,6 +10,7 @@ RUN set -xe \
     && ln -sf /etc/ipsec.d/ipsec.secrets /etc/ipsec.secrets
 
 COPY init.sh /init.sh
+COPY add-vpn-user.sh /add-vpn-user.sh
 COPY docker-entrypoint.sh /entrypoint.sh
 
 VOLUME /etc/ipsec.d /etc/strongswan.d

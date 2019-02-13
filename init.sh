@@ -49,6 +49,20 @@ conn IPSec-IKEv2
     rightid="client@${VPN_DOMAIN}"
     rightcert=client.cert.pem
     auto=add
+
+conn EAP-IKEv2
+    auto=add
+    keyexchange=ikev2
+    ike=aes256-sha256-modp1024,3des-sha1-modp1024,aes256-sha1-modp1024!
+    esp=aes256-sha256,3des-sha1,aes256-sha1!
+    leftid="${VPN_DOMAIN}"
+    leftsendcert=always
+    leftauth=pubkey
+    rightid=%any
+    rightauth=eap-mschapv2
+    rightsendcert=never
+    eap_identity=%identity
+
 _EOF_
 
 
